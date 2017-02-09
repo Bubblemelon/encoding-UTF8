@@ -1,7 +1,7 @@
 /*
  * encodeUTF8.c
  *
- * This program reads a given file containing UTF-32 encodings and decodes it
+ * This program reads a given file containing UTF-32 encodings and then decodes it
  * to determine the Unicode characters.
  *
  * The decoded characters are saved to an output file in UTF-8 format.
@@ -81,11 +81,14 @@ int main( int argc, char *argv[]  )
     }
 
      //////////////////////////////////////////////////////////////////////
+     // I tried using memcmp but was not successfull
+     //  Pointer casting seemed to not help with diffent size or conversion:
      //
-     //
+     // (1) cast from pointer to integer of different size [-Wpointer-to-int-cast]
+     // (2) passing argument 1 of ‘memcmp’ makes pointer from integer without a cast [-Wint-conversion]
      //////////////////////////////////////////////////////////////////////
 
-     //counter to stop for loop
+     //counter to count the number of bytes in the file e.g FF == 1 byte == 4 bits for one hex digit
     int counter = 0;
 
 
@@ -100,13 +103,52 @@ int main( int argc, char *argv[]  )
          read = getc(fin);
          counter++;
 
-        // printf( " %d ", counter);
+       //printf( " %d ", counter);
      }
 
-    for( int i = 0; i < 3; i++ )
-    {
 
-    }
+     /*
+      * Check for UTF-8 BOM
+      *
+      */
+
+      // UTF-8 BOM
+      const unsigned char *UTF_8_BOM = "\xEF\xBB\xBF";
+
+      //pointer cast int into char
+      const char *data;
+
+      //data = ( const char* )(read);
+        data = (const char*)&read;
+
+      if( counter <= 0 )
+      {
+        printf( "This input file is empty: %s\n", argv[1] );
+        exit(-1);
+      }
+      else if( counter >= 3 )
+      {
+
+        if( memcmp( UTF_8_BOM, data, 3) == 0 )
+        {
+          printf( "This is A UTF-8 FILE !!! \n" );
+
+        }
+        else // when input file does not contain BOM
+        {
+          printf( "This input file doesn't contain UTF-8 encodings: %s\n", argv[1] );
+          exit(-1);
+
+        }
+
+
+      }
+
+
+
+
+
+
 
 
 
@@ -150,4 +192,4 @@ int main( int argc, char *argv[]  )
     fclose( fout );
 
 
-}
+} // end main
