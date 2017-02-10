@@ -1,7 +1,7 @@
 /*
  * encodeUTF8.c
  *
- * This program reads a given file containing UTF-32 encodings and decodes it
+ * This program reads a given file containing UTF-32 encodings and then decodes it
  * to determine the Unicode characters.
  *
  * The decoded characters are saved to an output file in UTF-8 format.
@@ -82,31 +82,167 @@ int main( int argc, char *argv[]  )
 
      //////////////////////////////////////////////////////////////////////
      //
-     //
      //////////////////////////////////////////////////////////////////////
 
-     //counter to stop for loop
+     //counter to count the number of bytes in the file e.g FF == 1 byte == 4 bits for one hex digit
     int counter = 0;
 
 
      //container for characters in the input file
-     unsigned int read = getc( fin );
+     unsigned char *read;
+
+    // allocate memory for read with the size of the variable read
+    read = ( unsigned char *)malloc( sizeof(read) );
 
     // collect the characters and save into read variable
-     while( read != EOF )
-     {
-         printf( "%02X ", read );
+    fread( read, 1, sizeof( read ), fin );
 
-         read = getc(fin);
-         counter++;
 
-        // printf( " %d ", counter);
-     }
+    //print contents of input file
+     printf( "\nContents of file %s :\n" , argv[1] );
 
-    for( int i = 0; i < 3; i++ )
+    for( int i = 0 ; i < sizeof(read); i++)
     {
+         printf( "%X " , read[i] );
+         counter++;
+         //printf( " %d ", counter);
+    }
+
+    /*
+     *
+     * Loop for Byte Order Mark in UTF-32 File
+     * UTF-32 (Big Endian) 	00 00 FE FF
+     * UTF-32 (Little Endian) 	FF FE 00 00
+     */
+
+    //Look for BOM without 1 or 2 or 3 or 4 ... byte encodings
+    int bom = 0;
+
+    if( read[0] == 0x00 && read[1] == 0x00 && read[2] == 0xFE && read[3] == 0xFF )
+    {
+      printf("\n%X ", read[0] );
+      printf("%X ", read[1] );
+      printf("%X ", read[2] );
+      printf("%X ", read[3] );
+      printf( "is a UTF-32 Big Endian Byte Order Mark.\n");
+
+      bom = 4;
 
     }
+    else if ( read[0] == 0xFF && read[1] == 0xFE && read[2] == 0x00 && read[3] == 0x00 )
+    {
+      printf("\n%X ", read[0] );
+      printf("%X ", read[1] );
+      printf("%X ", read[2] );
+      printf("%X ", read[3] );
+      printf( "is a UTF-32 Little Endian Byte Order Mark.\n");
+
+      bom = 4;
+
+    }
+    else
+    {
+      printf( "\nInput file is missing a UTF-32 Byte Order Mark.\n" );
+      exit(-1);
+    }
+
+    /*
+     *
+     * Check for non-characters
+     *
+     * Use a for loop with 0xiFFFE and 0xiFFFF ????
+     * http://www.cs.unh.edu/~cs520/slides/Character-and-String-Representation.pdf
+     */
+
+     if( read[4] == 0xFF )
+     {
+       if( read[5] == 0xFE )
+       {
+         printf("Input file contains the non-character: 0xFFFE \n" );
+         exit(-1);
+       }
+
+       if( read[5] == 0xFF )
+       {
+         printf("Input file contains the non-character: 0xFFFF \n" );
+         exit(-1);
+       }
+     }
+     ///////////////////////////////////
+     else if( read[4] == 0x1F  )
+     {
+       if( read[5] == 0xFF )
+       {
+
+         if( read[6] ==0xE0 )
+         {
+           printf("Input file contains the non-character: 0x1FFFE \n" );
+           exit(-1);
+         }
+
+         if( read[6] == 0xF0 )
+         {
+           printf("Input file contains the non-character: 0x1FFFF \n" );
+           exit(-1);
+         }
+
+       }
+
+     }
+
+
+
+
+
+    /*
+     *
+     * Writting to output file in UTF-8 ( Ignore Endianess )
+     *
+     * EF BB BF
+     */
+
+     //a container for writing output file
+     unsigned char *write;
+
+    // allocate memory for read with the size of the variable write
+    write = ( unsigned char *)malloc( sizeof(write) );
+
+    // assign the UTF-32 BOM in big endian
+    write[0] = 0xEF;
+    write[1] = 0xBB;
+    write[2] = 0xBF;
+
+
+   // assign bytes from input file without UTF-8 BOM and encode UTf-32 BOM
+    for( int i = 0; i <= counter - bom ;i++ )
+    {
+      write[ 3 + i ] = read[ bom + i ];
+    }
+
+    //write into output file
+    fwrite(write , 1 , sizeof(write) , fout);
+
+    //print contents of input file
+    printf("\nThe contents of file %s :\n", argv[2]);
+
+    for( int i = 0 ; i < sizeof(write); i++)
+    {
+         printf( "%X " , write[i] );
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -150,4 +286,4 @@ int main( int argc, char *argv[]  )
     fclose( fout );
 
 
-}
+} // end main
